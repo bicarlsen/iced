@@ -5,6 +5,7 @@ use crate::core::overlay;
 use crate::core::renderer;
 use crate::core::touch;
 use crate::core::widget::{Meta, Operation, Tree, tree};
+use crate::core::window;
 use crate::core::{Event, Layout, Length, Point, Rectangle, Shell, Size, Vector, Widget};
 
 use std::path::PathBuf;
@@ -149,6 +150,7 @@ impl<'a, Message, W> MouseArea<'a, Message, W> {
 #[derive(Default)]
 struct State {
     is_hovered: bool,
+    has_files: bool,
     bounds: Rectangle,
     cursor_position: Option<Point>,
     previous_click: Option<mouse::Click>,
@@ -323,10 +325,23 @@ fn update<Message: Clone, W>(
     let cursor_position = cursor.position();
     let bounds = layout.bounds();
 
+    if let Event::Window(event) = event {
+        match event {
+            window::Event::FileHovered(_) => {
+                state.has_files = true;
+            }
+            window::Event::FilesHoveredLeft | window::Event::FileDropped(_) => {
+                state.has_files = false;
+            }
+            _ => {}
+        }
+    }
+
     if state.cursor_position != cursor_position || state.bounds != bounds {
         let was_hovered = state.is_hovered;
 
         state.is_hovered = cursor.is_over(layout.bounds());
+        state.has_files = state.is_hovered;
         state.cursor_position = cursor_position;
         state.bounds = bounds;
 
@@ -334,17 +349,23 @@ fn update<Message: Clone, W>(
             widget.on_enter.as_ref(),
             widget.on_move.as_ref(),
             widget.on_exit.as_ref(),
+            widget.on_files_hovered_left.as_ref(),
         ) {
-            (Some(on_enter), _, _) if state.is_hovered && !was_hovered => {
+            (Some(on_enter), _, _, _) if state.is_hovered && !was_hovered => {
                 shell.publish(on_enter.clone());
             }
-            (_, Some(on_move), _) if state.is_hovered => {
+            (_, Some(on_move), _, _) if state.is_hovered => {
                 if let Some(position) = cursor.position_in(layout.bounds()) {
                     shell.publish(on_move(position));
                 }
             }
-            (_, _, Some(on_exit)) if !state.is_hovered && was_hovered => {
+            (_, _, Some(on_exit), _) if !state.is_hovered && was_hovered => {
                 shell.publish(on_exit.clone());
+            }
+            (_, _, _, Some(on_files_hovered_left))
+                if !state.is_hovered && was_hovered && state.has_files =>
+            {
+                shell.publish(on_files_hovered_left.clone())
             }
             _ => {}
         }
@@ -411,6 +432,16 @@ fn update<Message: Clone, W>(
             if let Some(on_scroll) = widget.on_scroll.as_ref() {
                 shell.publish(on_scroll(*delta));
                 shell.capture_event();
+            }
+        }
+        Event::Window(window::Event::FileHovered(path)) => {
+            if let Some(on_file_hovered) = widget.on_file_hovered.as_ref() {
+                shell.publish(on_file_hovered(path.clone()));
+            }
+        }
+        Event::Window(window::Event::FileDropped(path)) => {
+            if let Some(on_file_dropped) = widget.on_file_hovered.as_ref() {
+                shell.publish(on_file_dropped(path.clone()));
             }
         }
         _ => {}
