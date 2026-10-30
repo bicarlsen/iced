@@ -1,0 +1,10 @@
+[package]
+name = "file_drag_drop"
+version = "0.1.0"
+authors = ["Brain Carlsen <carlsen.bri@gmail.com>"]
+edition = "2024"
+publish = false
+
+[dependencies]
+iced.workspace = true
+iced.features = []
