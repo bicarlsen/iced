@@ -7,6 +7,8 @@ use crate::core::touch;
 use crate::core::widget::{Meta, Operation, Tree, tree};
 use crate::core::{Event, Layout, Length, Point, Rectangle, Shell, Size, Vector, Widget};
 
+use std::path::PathBuf;
+
 /// Emit messages on mouse events.
 pub struct MouseArea<'a, Message, W = crate::Element<'a, Message>> {
     content: W,
@@ -21,6 +23,9 @@ pub struct MouseArea<'a, Message, W = crate::Element<'a, Message>> {
     on_enter: Option<Message>,
     on_move: Option<Box<dyn Fn(Point) -> Message + 'a>>,
     on_exit: Option<Message>,
+    on_file_hovered: Option<Box<dyn Fn(PathBuf) -> Message + 'a>>,
+    on_file_dropped: Option<Box<dyn Fn(PathBuf) -> Message + 'a>>,
+    on_files_hovered_left: Option<Message>,
     interaction: Option<mouse::Interaction>,
 }
 
@@ -111,6 +116,27 @@ impl<'a, Message, W> MouseArea<'a, Message, W> {
         self
     }
 
+    /// The message to emit when file is hovered.
+    #[must_use]
+    pub fn on_file_hovered(mut self, on_file_hovered: impl Fn(PathBuf) -> Message + 'a) -> Self {
+        self.on_file_hovered = Some(Box::new(on_file_hovered));
+        self
+    }
+
+    /// The message to emit when file is dropped.
+    #[must_use]
+    pub fn on_file_dropped(mut self, on_file_dropped: impl Fn(PathBuf) -> Message + 'a) -> Self {
+        self.on_file_dropped = Some(Box::new(on_file_dropped));
+        self
+    }
+
+    /// The message to emit when file is dropped.
+    #[must_use]
+    pub fn on_files_hovered_left(mut self, on_files_hovered_left: Message) -> Self {
+        self.on_files_hovered_left = Some(on_files_hovered_left);
+        self
+    }
+
     /// The [`mouse::Interaction`] to use when hovering the area.
     #[must_use]
     pub fn interaction(mut self, interaction: mouse::Interaction) -> Self {
@@ -144,6 +170,9 @@ impl<'a, Message, W> MouseArea<'a, Message, W> {
             on_enter: None,
             on_move: None,
             on_exit: None,
+            on_file_hovered: None,
+            on_file_dropped: None,
+            on_files_hovered_left: None,
             interaction: None,
         }
     }
